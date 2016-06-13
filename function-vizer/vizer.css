@@ -1,0 +1,16 @@
+.codebox {
+	height:100px;
+	width:300px;
+}
+.codezone {
+	float:left;
+}
+#diagram {
+	float:left;
+}
+.scope {
+	border:1px solid black;
+	background-color:#eeeeee;
+	padding:5px;
+	margin:5px;
+}
