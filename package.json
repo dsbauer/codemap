@@ -1,0 +1,25 @@
+{
+  "name": "codemap",
+  "version": "0.0.1",
+  "description": "Exploration of automated code diagramming",
+  "main": "index.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/dsbauer/codemap.git"
+  },
+  "author": "Daniel S Bauer",
+  "license": "ISC",
+  "bugs": {
+    "url": "https://github.com/dsbauer/codemap/issues"
+  },
+  "homepage": "https://github.com/dsbauer/codemap#readme",
+  "dependencies": {
+    "esprima": "^2.7.2",
+    "jquery": "^3.0.0",
+    "lodash": "^4.13.1",
+    "md5": "^2.1.0"
+  }
+}

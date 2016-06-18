@@ -70,7 +70,7 @@ function FunctionTree(code, symbols, parent) {
 	this.children = [];
 	var nextSymb = symbols.shift();
 	code = code.slice(code.find(nextSymb));
-	if (nextSymb==='{')
+	//if (nextSymb==='{')
 	//extractFunctionTrees(code,this);
 }
 
@@ -97,7 +97,7 @@ function namedParams(fn) {
 
 function snapshot() {
 	var fn = arguments.callee.caller;
-	//console.log(fn.caller.toString());	
+	//console.log(fn.caller.toString());
 
 	//return;
 	while(fn &&

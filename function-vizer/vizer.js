@@ -1,20 +1,20 @@
 
-var code = '\
-	var x,y,z=2;\
-	function Fun1() {\
-		function Fun2() {\
-			if (false) blahblah;\
-			else return;\
-		}\
-		var a,b,c= a+b;\
-		return function Fun3() {\
-			return 2;\
-		}\
-	}\
-	if (false) {\
-		nevermind;\
-	}\
-';
+var code = `
+	var x,y,z=2;
+	function Fun1() {
+		function Fun2() {
+			if (false) blahblah;
+			else return;
+		}
+		var a,b,c= a+b;
+		return function Fun3() {
+			return 2;
+		}
+	}
+	if (false) {
+		nevermind;
+	}
+`;
 
 var self = function(val) {
 	return val;
@@ -48,10 +48,11 @@ function indexChildren(children) {
 function findName(childFn) {
 	return childFn.alias || childFn.name || ''
 }
+var globalScopeName = ' ';
 function makeNode(tree,vars,body,alias) {
 	var name;
 	if (!tree) {
-		name='global'
+		name=globalScopeName
 	} else if (!tree.id) {
 		name=''
 	} else {
@@ -67,6 +68,8 @@ function makeNode(tree,vars,body,alias) {
 	}
 	if (tree && tree.params)
 		obj.params = tree.params.map(pluckName);
+	if (tree && tree.range)
+		obj.source = code.slice(tree.range[0],tree.range[1]);
 	if (alias)
 		obj.alias = alias;
 	if (vars && vars.length)
@@ -103,6 +106,7 @@ function pruneTree(tree,vars,depth,alias) {
 		case 'FunctionDeclaration':
 			vars.push(tree.id.name);
 		case 'FunctionExpression':
+		case 'ArrowFunctionExpression':
 			vars=[];
 			return makeNode(tree,vars,pruneTree(tree.body,vars,deeper,alias),alias);
 		case 'BlockStatement':
@@ -131,36 +135,72 @@ function pruneTree(tree,vars,depth,alias) {
 	}
 }
 
-function renderMap(fns,$container) {
-	var paramStr = fns.params? fns.params.join(): '';
-	var varStr = fns.vars? fns.vars.join(): '';
-	var $el = $('<div>')
+function renderMap(fns,$container,label) {
+	//var fnNames = fns.names;
+	var vars = _.difference(fns.vars,fns.names);
+		//fns.vars? fns.vars: [];
+
+	var isGlobal = fns.name===globalScopeName,
+			paramList = fns.params? fns.params.join(): '',
+			paramStr = isGlobal? '': '('+paramList+')',
+			varStr = vars.join(', ');
+	if (varStr)
+			varStr = '<b>'+varStr+'</b>';
+	var content = _.compact([fns.name+paramStr,varStr]).join('<br>');
+
+	var $outer = $('<div>')
+				.addClass('compartment');
+	if (label) {
+		$outer.append($('<b>').html(label+':'));//perhaps use fns.name instead?
+	}
+	var $inner = $('<div>')
 				.addClass('scope')
-				.html(fns.name +
-					'(' +paramStr+ ')<br>'+
-					'[' +varStr+ ']<br>')
-				.appendTo($container);
+				.addClass(isGlobal? 'global':'function')
+				.html(content)
+				.attr('code',fns.source)
+				.appendTo($outer);
+
+	// Register function so that its rendering can be found when it runs
+	Function.register(fns);
+
+	$outer.appendTo($container);
 
 	var children = fns.children || [];
 	if (!(children instanceof Array))
 		children = [children];
 	children.forEach(function (child,i){
-		if (fns.names[i])
-			$('<b>').html(fns.names[i]+':').appendTo($el);
-		renderMap(child,$el);
+		renderMap(child,$inner,fns.names[i]);
 	})
 }
 function renderOuter(fns) {
 	var $container = $('#diagram').html('');
-	renderMap(fns,$container);
+	renderMap(fns,$container,'global');
 }
 
-function go() {
+var hashFn = x=>x;//md5
+
+Function.registry = {};
+Function.register = function(rec,fn) {
+	var source = (fn? fn.toString(): rec.source);
+	Function.registry[hashFn(source)]={fn:fn,rec:rec};
+}
+Function.prototype.meta = function() {
+	var hash = hashFn(this.toString());
+	return Function.registry[hash].rec;
+}
+
+function go1() {
 	code = document.getElementById('code').value;
-	tree = esprima.parse(code);
+	tree = esprima.parse(code,{range:true});
 	fns = pruneTree(tree);
 	console.log(JSON.stringify(fns,null,2));
 	renderOuter(fns);
+}
+
+function go() {
+	var code = document.getElementById('code').value,
+			lexmap = LexicalContext.makeMapFromCode(code);
+	renderOuter(lexmap);
 }
 
 var tree, fns;
@@ -200,4 +240,3 @@ function replaceFnsWithScopes(treeObj,parentScope) {
 	parentScope.children = prunedList;
 }
 */
-
