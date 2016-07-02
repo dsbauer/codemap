@@ -1,5 +1,5 @@
 .codebox {
-	height:500px;
+	height:200px;
 	width:400px;
 }
 .codezone {
@@ -19,6 +19,23 @@
 
 .global {
 	border-radius:15px;
+}
+
+.execFrame {
+	display:inline-block;
+	dsplay:inline;
+	padding:3px;
+	border:1px solid grey;
+	border-radius:30%;
+	brder-left:none;
+	brder-top:none;
+	mn-height:20px;
+	lne-height:inherit;
+	min-width:20px;
+}
+
+.execFrame.updated {
+	border-color:red;
 }
 
 .function {

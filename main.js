@@ -1,13 +1,14 @@
-var lc = null;//debugging
+var lctree = null;//visible for debugging
 
-function go() {
-	var code = document.getElementById('code').value,
-			lexmap = LexicalContext.makeMapFromCode(code);
-	var view = new MapView(lexmap);
-  lc = lexmap;
-}
 
-window.onload = function() {
-	var btn = document.getElementById('goBtn');
-	btn.onclick = go;
-}
+$(function() {
+	$('#goBtn').click(function() {
+		var code = document.getElementById('code').value,
+				// parse code to build LexicalContext tree:
+				lexmap = lctree= LexicalContext.makeMapFromCode(code),
+				// build initial diagram of contexts
+				view = new MapView(lexmap);
+		// wrap all functions, run wrapped code, and modify diagram:
+	  return runIt(code,lexmap);
+	})
+});

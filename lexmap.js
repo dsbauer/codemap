@@ -1,22 +1,29 @@
-/* A lexical map is a tree structure representing the lexical nesting of all functions in the input code
-Each node corresponds to the context of one function, with the following info:
-* the node of the parent context (i.e. enclosing function)
-* an array of children
-* an list of names of local variables or parameters
-*the functions' source code and its position range within full code
-* if discovered, a reference to the function itself
-* an array of known execution contexts (scopes), one for each (detectable) time the function has run.
+/* A lexical map is a tree structure representing the lexical nesting of all functions in the input code.
+Each tree node corresponds to the context of one function, with the following info:
+-- the parent node (i.e. context of the enclosing function)
+-- an array of children
+-- a list of names of local variables or parameters
+-- the functions' source code and its position range within full code
+-- if discovered, a reference to the function itself
+-- an array of known execution contexts (scopes), one for each (detectable) time the function has run.
 */
 
 var LexicalContext = (function() {
+  function write(depth,str){
+  	var space = '                              ';
+  	console.log(space.substr(0,depth)+str);
+  }
+
   function pruneDeeper(vars,newDepth){
   	return function(tree){
   		return pruneTree(tree,vars,newDepth);
   	}
   }
+
   function pruneTree(tree,vars,depth,alias) {
     // given an esprima parse tree, prune it to include only function declarations and expressions
 
+//console.log(tree);
   	if (!tree) return null;
   	if (!depth) depth=0;
   	var deeper = depth+1;
@@ -32,9 +39,10 @@ var LexicalContext = (function() {
   			return null;
   		if (list.length===1)
   			return list[0];
+      // BUG: if list.length>1, list must be merged with next sibling
   		return list;
   	}
-  	//write(depth,tree.type);
+  	write(depth,tree.type);
   	switch (tree.type) {
   		case undefined:
   		case 'Literal':
@@ -46,7 +54,7 @@ var LexicalContext = (function() {
   			vars.push(tree.id.name);
   		case 'FunctionExpression':
   		case 'ArrowFunctionExpression':
-  			vars=[];
+  			vars=[];//WTF?
   			return makeNode(tree,vars,pruneTree(tree.body,vars,deeper,alias),alias);
   		case 'BlockStatement':
   			return pruneTree(tree.body,vars,deeper,alias);
@@ -109,6 +117,8 @@ var LexicalContext = (function() {
   		name=tree.id.name;
   	}
   	var obj = {name:name};
+    if (tree && tree.type)
+      obj.type = tree.type;
   	if (body) {
   		if (!(body instanceof Array))
   			body = [body];
@@ -118,8 +128,10 @@ var LexicalContext = (function() {
   	}
   	if (tree && tree.params)
   		obj.params = tree.params.map(pluckName);
-  	if (tree && tree.range)
+  	if (tree && tree.range) {
   		obj.source = code.slice(tree.range[0],tree.range[1]);
+      obj.range = tree.range;
+    }
   	if (alias)
   		obj.alias = alias;
   	if (vars && vars.length)
@@ -133,13 +145,20 @@ var LexicalContext = (function() {
     this.instances = new Set();
     if (this.children instanceof Array)
       this.children.forEach(child=>child.parent=this);
-    Function.registerContext(this);
+    //Function.registerContext(this);
   }
   LexicalContext.prototype.isGlobal = function() {
     return this.name === globalScopeName;
   }
+  LexicalContext.prototype.isDeclaration = function() {
+    return this.type === 'FunctionDeclaration';
+  }
   LexicalContext.prototype.localVars = function() {
-    return (this.vars || []).concat(this.params || []);
+    return _.compact(
+      (this.vars || [])
+      .concat(this.params || [])
+      .concat(this.names || [])
+    )
   }
   LexicalContext.prototype.visibleVars = function() {
     var inherited = this.parent && this.parent.visibleVars();
@@ -161,28 +180,48 @@ var LexicalContext = (function() {
   function normalizeSource(str) {
     return str && str.replace(/^function\s*\(/,'function \(');
   }
-  var hashFn = x=>normalizeSource(x);//md5?
+  var hashFn = normalizeSource;//md5?
 
-  Function.registry = {};
+  Function.registry = {};  // a collection of all known LexicalContexts,
+  // indexed by (more or less) their source code
+  // This allows any function instance to find its context
+  // BUG: identical functions cannot tell their contexts apart
 
   Function.registerContext = function(ctx) {
-  	Function.registry[hashFn(ctx.source)]=ctx;
+    var source = ctx.newSource; // the modified code, which matches the function actually built
+               //ctx.source;  // the original code from user input
+  	Function.registry[hashFn(source)]=ctx;
   }
 
 
   Function.prototype.register = function() {
-    var source = this.toString(),
+    // add this function instance to its context object
+    var source = this.toString(),// should match ctx.newSource
         ctx = Function.registry[hashFn(source)];
     ctx.instances.add(this);
   }
+
+  Function.prototype.peek = function() {
+    // if this function has a .currentFrame (a view of its current exec context),
+    //  update that view to show the values in arguments
+    //  as the current values of its local variables
+    console.log('peeking at: ',this);
+    var view = this.currentFrame,
+        ctx = this.context;
+    if (!view) return;
+    var ids = ctx.localVars();
+    view.render(_.zipObject(ids,arguments));
+  }
+
   // This deeply-embedded function is currently undetectable as a LexicalContext itself.
   // Need to modify pruneTree to explore branches like this monster:
   // tree.body[0].declarations[0].init.callee.body.body[19].expression.arguments[2].properties[0].value
   // FIXED?
   Object.defineProperty(Function.prototype,'context', {
     get: function context() {
-      var hash = hashFn(this.toString()),
-          obj = Function.registry[hash];
+      var obj = Function.registry[hashFn(this.toString())] ||
+                this.inner &&
+                Function.registry[hashFn(this.inner.toString())];
       return this.context = obj;//cache unchanging result
     }
   });
@@ -199,14 +238,4 @@ var LexicalContext = (function() {
 if (typeof module !== 'object') {
   var module = {};
   module.exports = LexicalContext;
-}
-
-
-function testFn(arg) {
-  var out = arg+arg;
-  return out;
-}
-
-var testObj = {
-  method: function testMethod() {return 7}
 }

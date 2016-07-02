@@ -4,16 +4,18 @@
 <script type="text/javascript" src="node_modules/jquery/dist/jquery.js"></script>
 <script type="text/javascript" src="node_modules/esprima/esprima.js"></script>
 <script type="text/javascript" src="node_modules/lodash/lodash.js"></script>
+<script type="text/javascript" src="node_modules/backbone/backbone-min.js"></script>
 <!--script type="text/javascript" src="../node_modules/md5/md5.js"></script-->
 <script type="text/javascript" src="lexmap.js"></script>
-<script type="text/javascript" src="viewer.js"></script>
-<!--script type="text/javascript" src="callspy.js"></script-->
+<script type="text/javascript" src="viewer-bb.js"></script>
+<script type="text/javascript" src="spy.js"></script>
+<script type="text/javascript" src="wrap-fns.js"></script>
 <script type="text/javascript" src="main.js"></script>
 </head>
 <body>
 	<div class='codezone'>
-		<button id='goBtn'>Go</button>
-		<textarea type='text' id='code' class='codebox' rows="100" cols="200"></textarea>
+		<textarea type='text' placeholder='paste JS here' id='code' class='codebox' rows="100" cols="200"></textarea>
+		<button id='goBtn'>Diagram it</button>
 	</div>
 	<div id='diagram'></div>
 </body>
