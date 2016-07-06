@@ -17,7 +17,20 @@ function spy() {
 }
 
 // Make SPY an auto-called function, as in `eval(SPY)`:
-Object.defineProperty(window, 'SPY', {get: spy});
+Object.defineProperty(typeof window==='object'? window: global,
+    'SPY', {get: spy});
+
+/*
+function spyout() {
+  // spy on local vars and all variables above...
+  var me = arguments.callee.caller,
+      ctx = me && me.context,
+      stack = ctx && ctx.above() || [];
+  stack.push(me);
+  return stack.map(ctx=> //??????????      )
+              .join(';')
+}
+*/
 
 /* Experiment failing as expected: local vars are out of scope :
 

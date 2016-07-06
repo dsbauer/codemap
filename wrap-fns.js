@@ -1,3 +1,6 @@
+//if (typeof require==='function')
+//  var ScopeView = require('./viewer-bb.js');
+
 var runIt = (function (){
 
 function _$(fn) {
@@ -5,12 +8,14 @@ function _$(fn) {
   console.log('building funct: ',fn.name);
   var proxy = function() {
     console.log('calling funct: ',fn.name);
-    new ScopeView({fn:fn,args:arguments});
+    if (typeof ScopeView === 'function')// if GUI...
+      new ScopeView({fn:fn,args:arguments});
     //fn;// && fn.apply &&
     return fn.apply(fn,arguments);
   }
   proxy.inner = fn;
   proxy.context = fn.context;
+  proxy.parentFrame = arguments.callee.caller.currentFrame;//???
   //do postbuild admin...
   return proxy;
 }
@@ -47,21 +52,29 @@ function wrapIntervals(text,tree,origin,skipEnd) {
   if (tree.isGlobal()) //HACK: don't wrap outermost
     return preamble + interior + coda;
   tree.newSource = interior;
-  Function.registerContext(tree);
+  Function.registerContext(tree,interior);
   return preamble + modifyLmark(tree) + interior + rmark + coda;
 }
 
 return function runIt(code,tree) {
   var newcode = wrapIntervals(code,tree);
   console.log(newcode);
-  $('<textarea>')
-    //.appendTo('.codezone') //adds box showing modified code
-    .addClass('codebox')
-    .val(newcode);
+  if (typeof $==='function') {
+    $('<textarea>')
+      //.appendTo('.codezone') //adds box showing modified code
+      .addClass('codebox')
+      .val(newcode)
+  }
   return eval(newcode);
 }
 
 }())
+
+if (typeof module === 'object') {
+  module.exports = runIt;
+}
+
+
 
 /*
 //Example of wrapIntervals:

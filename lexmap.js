@@ -1,3 +1,8 @@
+if (typeof require === 'function') {
+  var esprima = require('esprima'),
+      _ = require('lodash');
+}
+
 /* A lexical map is a tree structure representing the lexical nesting of all functions in the input code.
 Each tree node corresponds to the context of one function, with the following info:
 -- the parent node (i.e. context of the enclosing function)
@@ -42,14 +47,14 @@ var LexicalContext = (function() {
       // BUG: if list.length>1, list must be merged with next sibling
   		return list;
   	}
-  	write(depth,tree.type);
+  	//write(depth,tree.type);
   	switch (tree.type) {
   		case undefined:
   		case 'Literal':
   			return null;
   		case 'Program':
   			vars=[];
-  			return makeNode(null,vars,pruneTree(tree.body,vars,deeper,alias));
+  			return makeNode(tree,vars,pruneTree(tree.body,vars,deeper,alias));
   		case 'FunctionDeclaration':
   			vars.push(tree.id.name);
   		case 'FunctionExpression':
@@ -109,7 +114,7 @@ var LexicalContext = (function() {
   var globalScopeName = ' ';
   function makeNode(tree,vars,body,alias) {
   	var name;
-  	if (!tree) {
+  	if (tree.type==='Program') {
   		name=globalScopeName
   	} else if (!tree.id) {
   		name=''
@@ -145,7 +150,14 @@ var LexicalContext = (function() {
     this.instances = new Set();
     if (this.children instanceof Array)
       this.children.forEach(child=>child.parent=this);
-    //Function.registerContext(this);
+    Function.registerContext(this);
+  }
+  LexicalContext.prototype.flatten = function() {
+    var nodes = [this], children = this.children;
+    if (children instanceof Array) {
+      nodes = nodes.concat(_.flatten(children.map(child=>child.flatten())))
+    }
+    return nodes;
   }
   LexicalContext.prototype.isGlobal = function() {
     return this.name === globalScopeName;
@@ -157,7 +169,7 @@ var LexicalContext = (function() {
     return _.compact(
       (this.vars || [])
       .concat(this.params || [])
-      .concat(this.names || [])
+      //.concat(this.names || [])
     )
   }
   LexicalContext.prototype.visibleVars = function() {
@@ -173,7 +185,7 @@ var LexicalContext = (function() {
     code = usecode;
     var tree = esprima.parse(code,{range:true});
     var fns = pruneTree(tree);
-    window.tree = tree;
+    //window.tree = tree;
     return fns;
   }
 
@@ -187,18 +199,30 @@ var LexicalContext = (function() {
   // This allows any function instance to find its context
   // BUG: identical functions cannot tell their contexts apart
 
-  Function.registerContext = function(ctx) {
-    var source = ctx.newSource; // the modified code, which matches the function actually built
-               //ctx.source;  // the original code from user input
-  	Function.registry[hashFn(source)]=ctx;
+  Function.registerContext = function(ctx,newSource) {
+    if (ctx.isGlobal()) return; //don't register global frame as a function
+    var source = newSource || //ctx.newSource; // the modified code, which matches the function actually built
+               ctx.source,  // the original code from user input
+        key = hashFn(source);
+  	Function.registry[key]=ctx;
+    //console.log("Registering context:")
+    //console.log(key);
+    //console.log(ctx);
   }
 
 
   Function.prototype.register = function() {
     // add this function instance to its context object
     var source = this.toString(),// should match ctx.newSource
-        ctx = Function.registry[hashFn(source)];
-    ctx.instances.add(this);
+        key = hashFn(source),
+        ctx = Function.registry[key];
+    if (ctx)
+      return ctx.instances.add(this);
+    else
+      return false;
+    //console.log(Object.keys(Function.registry)[1]);
+    //console.log(key);
+    //return key;
   }
 
   Function.prototype.peek = function() {
@@ -219,23 +243,19 @@ var LexicalContext = (function() {
   // FIXED?
   Object.defineProperty(Function.prototype,'context', {
     get: function context() {
-      var obj = Function.registry[hashFn(this.toString())] ||
+      var key;
+      var obj = Function.registry[key=hashFn(this.toString())] ||
                 this.inner &&
                 Function.registry[hashFn(this.inner.toString())];
+      //console.log(key);
+      //console.log(Object.keys(Function.registry));
       return this.context = obj;//cache unchanging result
     }
   });
-  /*
-  Function.prototype.context = function() {
-  	var hash = hashFn(this.toString());
-  	return Function.registry[hash];
-  }*/
-
 
   return LexicalContext;
 }())
 
-if (typeof module !== 'object') {
-  var module = {};
+if (typeof module === 'object') {
   module.exports = LexicalContext;
 }
